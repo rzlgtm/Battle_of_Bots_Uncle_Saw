@@ -32,6 +32,9 @@ ESP32Servo servo;
 #define SERVO_MAX 180
 #define SERVO_MIN 0
 #define SERVO_STEP 4
+#define SERVO_DELAY 20
+int currentServoAngle = SERVO_MIN;
+int targetServoAngle = 0;
 
 //setting up
 void setup_servo();
@@ -39,11 +42,13 @@ void setup_communication();
 
 //control
 void handleDrive();
-void handleFlipper();
+void handleServo();
 void handleSaw();
 void hardBreak();
 
 
+unsigned long prevMillis = 0;
+unsigned long currentMillis = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -57,9 +62,12 @@ void setup() {
   setup_communication();
   setup_servo();
   hardBreak();
+
 }
 
 void loop() {
+  currentMillis = millis();
+
   if (currentMode == BLUETOOTH) {
         readBluetooth();
     } else {
@@ -68,12 +76,14 @@ void loop() {
 
   if (connected) {
         handleDrive();
-        handleFlipper();
+        handleServo();
         handleSaw();
     } else {
         hardBreak();
         idleServo();
     }
+
+  prevMillis = currentMillis;
 }
 
 
@@ -81,8 +91,30 @@ void loop() {
 //SERVO SETTINGS
 void setup_servo(){
   servo.attach(SERVO_PIN, SERVO_MIN, SERVO_MAX);
+  servo.write(SERVO_MIN);
 }
-void handleServo(){
+
+void handleServo() {
+
+  if (currentMillis - prevMillis >= SERVO_DELAY) {
+    prevMillis = currentMillis;
+
+    if (currentServoAngle < targetServoAngle) {
+      currentServoAngle += SERVO_STEP;
+
+      if (currentServoAngle > targetServoAngle)
+        currentServoAngle = targetServoAngle;
+    }
+
+    else if (currentServoAngle > targetServoAngle) {
+      currentServoAngle -= SERVO_STEP;
+
+      if (currentServoAngle < targetServoAngle)
+        currentServoAngle = targetServoAngle;
+    }
+
+    servo.write(currentServoAngle);
+  }
 }
 void idleServo(){
   servo.write(SERVO_MIN);
